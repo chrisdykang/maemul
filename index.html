@@ -153,6 +153,20 @@ body{font-family:'Apple SD Gothic Neo',sans-serif;background:var(--bg);color:var
       </div>
     </div>
 
+    <div class="modal-overlay" id="date-modal">
+      <div class="modal" style="width:360px">
+        <h2 id="date-modal-title">계약일 선택</h2>
+        <div class="fg" style="margin-bottom:16px">
+          <label>날짜</label>
+          <input type="date" id="date-modal-input">
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeDateModal()">취소</button>
+          <button class="btn btn-primary" onclick="confirmDateModal()">저장</button>
+        </div>
+      </div>
+    </div>
+
     <div id="page-listings">
       <div id="no-api-banner" class="no-api" style="display:none">
         API 설정이 필요해요.
@@ -440,8 +454,6 @@ function renderListings(records) {
       +'<option value="계약완료"'+(f.status==='계약완료'?' selected':'')+'>계약완료</option>'
       +'<option value="취소(타부동산계약)"'+(f.status==='취소(타부동산계약)'?' selected':'')+'>취소(타부동산계약)</option>'
       +'</select></div>'
-      +'<div class="fg"><label>계약일</label><input type="date" id="us-closed-'+r.id+'" value="'+(f.closed_date||'')+'"></div>'
-      +'<div class="fg"><label>계약 금액 (만원)</label><input type="number" id="us-price-'+r.id+'" value="'+(f.price_10k_krw||'')+'"></div>'
       +'<div class="fg"><label>담당자</label><input type="text" id="us-agent-'+r.id+'" value="'+esc(f.agent||'')+'" placeholder="담당자명"></div>'
       +'<div class="fg update-full"><label>메모 수정</label><textarea id="us-memo-'+r.id+'" rows="2">'+esc(f.internal_memo||'')+'</textarea></div>'
       +'</div>'
@@ -459,27 +471,55 @@ function copyAd(id,type) {
   var el=document.getElementById((type==='naver'?'naver':'insta')+'-'+id);
   if(el) navigator.clipboard.writeText(el.textContent).then(function(){showToast('복사됐어요!');});
 }
+var _pendingUpdate = null;
+
+function closeDateModal() {
+  document.getElementById('date-modal').classList.remove('open');
+  _pendingUpdate = null;
+}
+
+function confirmDateModal() {
+  var date = document.getElementById('date-modal-input').value;
+  if (!date) { alert('날짜를 선택해 주세요.'); return; }
+  if (_pendingUpdate) {
+    _pendingUpdate.fields['closed_date'] = date;
+    doUpdateListing(_pendingUpdate.id, _pendingUpdate.fields);
+  }
+  closeDateModal();
+}
+
 function updateListing(id) {
-  var status=document.getElementById('us-status-'+id).value;
-  var closedDate=document.getElementById('us-closed-'+id).value;
-  var price=document.getElementById('us-price-'+id).value;
-  var agent=document.getElementById('us-agent-'+id).value;
-  var memo=document.getElementById('us-memo-'+id).value;
-  var fields={};
-  if(status) fields['status']=status;
-  if(closedDate) fields['closed_date']=closedDate;
-  if(price) fields['price_10k_krw']=parseInt(price);
-  if(agent) fields['agent']=agent;
-  if(memo) fields['internal_memo']=memo;
-  if(!Object.keys(fields).length){showToast('변경된 내용이 없어요.');return;}
-  airtableFetch('Listings/'+id,{method:'PATCH',body:JSON.stringify({fields:fields})})
-    .then(function(){
+  var status = document.getElementById('us-status-'+id).value;
+  var price = document.getElementById('us-price-'+id).value;
+  var agent = document.getElementById('us-agent-'+id).value;
+  var memo = document.getElementById('us-memo-'+id).value;
+  var fields = {};
+  if (status) fields['status'] = status;
+  if (price) fields['price_10k_krw'] = parseInt(price);
+  if (agent) fields['agent'] = agent;
+  if (memo) fields['internal_memo'] = memo;
+  if (!Object.keys(fields).length) { showToast('변경된 내용이 없어요.'); return; }
+
+  if (status === '계약완료' || status === '취소(타부동산계약)') {
+    _pendingUpdate = { id: id, fields: fields };
+    var title = status === '계약완료' ? '계약일을 선택해 주세요' : '취소일을 선택해 주세요';
+    document.getElementById('date-modal-title').textContent = title;
+    document.getElementById('date-modal-input').value = new Date().toISOString().split('T')[0];
+    document.getElementById('date-modal').classList.add('open');
+  } else {
+    doUpdateListing(id, fields);
+  }
+}
+
+function doUpdateListing(id, fields) {
+  airtableFetch('Listings/'+id, {method:'PATCH', body:JSON.stringify({fields:fields})})
+    .then(function() {
       showToast('저장됐어요!');
-      var hide=status==='계약완료'||status==='취소(타부동산계약)';
+      var hide = fields['status'] === '계약완료' || fields['status'] === '취소(타부동산계약)';
       loadListings();
-      if(!hide){setTimeout(function(){var b=document.getElementById('body-'+id);if(b)b.classList.add('open');},600);}
+      if (!hide) { setTimeout(function() { var b=document.getElementById('body-'+id); if(b) b.classList.add('open'); }, 600); }
     })
-    .catch(function(e){alert('저장 실패: '+e.message);});
+    .catch(function(e) { alert('저장 실패: '+e.message); });
 }
 function resetForm() {
   ['f-name','f-district','f-unit','f-area','f-floor','f-total-floors','f-rooms','f-baths','f-parking-n','f-price','f-monthly','f-maint','f-avail','f-selling','f-memo'].forEach(function(id){
