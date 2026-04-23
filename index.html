@@ -490,12 +490,10 @@ function confirmDateModal() {
 
 function updateListing(id) {
   var status = document.getElementById('us-status-'+id).value;
-  var price = document.getElementById('us-price-'+id).value;
   var agent = document.getElementById('us-agent-'+id).value;
   var memo = document.getElementById('us-memo-'+id).value;
   var fields = {};
   if (status) fields['status'] = status;
-  if (price) fields['price_10k_krw'] = parseInt(price);
   if (agent) fields['agent'] = agent;
   if (memo) fields['internal_memo'] = memo;
   if (!Object.keys(fields).length) { showToast('변경된 내용이 없어요.'); return; }
