@@ -81,6 +81,7 @@ body{font-family:'Apple SD Gothic Neo',sans-serif;background:var(--bg);color:var
 .badge-closed{background:var(--bg);color:var(--text-3)}
 .badge-cancelled{background:var(--red-bg);color:var(--red)}
 .listing-card-body{border-top:1px solid var(--border);padding:16px 18px;display:none}
+.listing-date-info{font-size:11px;color:var(--text-3);margin-top:3px}
 .listing-card-body.open{display:block}
 .detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px}
 .detail-item{display:flex;flex-direction:column;gap:3px}
@@ -421,11 +422,20 @@ function renderListings(records) {
       unitShort = dongMatch ? '· ' + dongMatch[0] : '';
     }
     var sub=[f.district, unitShort, f.area_sqm?'· '+f.area_sqm+'㎡('+py+'평)':'',f.floor?'· '+f.floor+'층':''].filter(Boolean).join(' ');
+    var isClosed = f.status==='계약완료'||f.status==='취소(타부동산계약)';
+    var dateInfo = '';
+    if (isClosed) {
+      var parts = [];
+      if (f.closed_date) parts.push('거래일: '+f.closed_date);
+      if (f.updated_time) parts.push('업데이트: '+f.updated_time.split('T')[0]);
+      if (parts.length) dateInfo = '<div class="listing-date-info">'+parts.join(' · ')+'</div>';
+    }
     return '<div class="listing-card">'
       +'<div class="listing-card-head" onclick="toggleCard(\''+r.id+'\')">'
       +'<div class="listing-card-head-info">'
       +'<div class="listing-name">'+esc(f.building_name||'—')+'</div>'
       +'<div class="listing-sub">'+esc(sub)+'</div>'
+      +dateInfo
       +'</div>'
       +'<div class="listing-card-meta">'
       +'<div class="listing-price">'+esc(f.transaction_type||'')+' '+formatPrice(f)+'</div>'
